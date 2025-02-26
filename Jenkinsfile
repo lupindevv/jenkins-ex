@@ -76,7 +76,7 @@ pipeline {
                     
                     // Use Jenkins credentials to push
                     withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
-                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:jenkins-jobs"
+                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
                     }
                 } // Added missing closing brace for script block
             }
