@@ -4,6 +4,15 @@ pipeline {
         nodejs 'npm'  // Changed from 'maven' to 'nodejs'
     }
     stages {
+        stage('build app') {
+            steps {
+                script {
+                    echo 'Installing dependencies...'
+                    sh 'npm install'
+                }
+            }
+        }
+        
         stage('increment version') {
             steps {
                 script {
@@ -17,14 +26,7 @@ pipeline {
                 }
             }
         }
-        stage('build app') {
-            steps {
-                script {
-                    echo 'Installing dependencies...'
-                    sh 'npm install'
-                }
-            }
-        }
+        
         stage('run tests') {
             steps {
                 script {
