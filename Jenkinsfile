@@ -65,7 +65,7 @@ pipeline {
         
         stage('commit new version') {
             steps {
-                 script {
+                script {
                     // Configure git
                     sh 'git config --global user.email "jenkins@example.com"'
                     sh 'git config --global user.name "jenkins"'
@@ -78,6 +78,7 @@ pipeline {
                     withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
                         sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:jenkins-jobs"
                     }
+                } // Added missing closing brace for script block
             }
         }
     }
