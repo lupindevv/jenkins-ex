@@ -65,22 +65,19 @@ pipeline {
         
         stage('commit new version') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'github', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                        sh 'git config --global user.email "jenkins@example.com"'
-                        sh 'git config --global user.name "jenkins"'
-
-                        sh 'git status'
-                        sh 'git branch'
-                        sh 'git config --list'
-
-                        sh "git remote set-url origin https://${USER}:${PASS}@github.com/lupindevv/jenkins-ex.git"
-
-                        sh 'git add .'
-                        sh 'git commit -m "ci: version bump"'
-                        sh 'git push origin HEAD:jenkins-jobs'
+                 script {
+                    // Configure git
+                    sh 'git config --global user.email "jenkins@example.com"'
+                    sh 'git config --global user.name "jenkins"'
+                    
+                    // Add changes and commit
+                    sh 'git add .'
+                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
+                    
+                    // Use Jenkins credentials to push
+                    withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
+                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:jenkins-jobs"
                     }
-                }
             }
         }
     }
