@@ -73,6 +73,7 @@ pipeline {
                     // Add changes and commit
                     sh 'git add .'
                     sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
+                    sh "git pull origin for-testing"
                     
                     // Use Jenkins credentials to push
                     withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
