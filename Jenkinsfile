@@ -23,7 +23,7 @@ pipeline {
                 dir(env.APP_DIR) {  // Fixed from "dev" to "dir"
                     script {
                         echo "Incrementing version..."
-                        sh 'npm version patch --no-git-tag-version'
+                        sh 'npm version major --no-git-tag-version'
                         def packageJson = readJSON file: 'package.json'
                         env.VERSION = packageJson.version
                         def matcher = readFile('package.json') =~ /"version": "(.*?)"/
@@ -64,17 +64,22 @@ pipeline {
         }
         
         stage('commit new version') {
-    steps {
-        script {
-            sh 'git config --global user.email "jenkins@example.com"'
-            sh 'git config --global user.name "jenkins"'
-
-            sh 'git add package.json package-lock.json'
-            sh 'git commit -m "ci: version bump [ci skip]" || echo "No changes to commit"'
-            sh "git pull --rebase origin for-testing"
-
-            withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
-                sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing || true"
+            steps {
+                script {
+                    // Configure git
+                    sh 'git config --global user.email "jenkins@example.com"'
+                    sh 'git config --global user.name "jenkins"'
+                    
+                    // Add changes and commit
+                    sh 'git add .'
+                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
+                    sh "git pull origin for-testing"
+                    
+                    // Use Jenkins credentials to push
+                    withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
+                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
+                    }
+                } 
             }
         }
     }
