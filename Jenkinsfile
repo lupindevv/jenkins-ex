@@ -6,7 +6,7 @@ pipeline {
     environment {
         APP_DIR = 'app'
         REMOTE_USER = 'root'
-        REMOTE_HOST = '138.68.106.49'
+        REMOTE_HOST = '209.38.231.100'
         CONTAINER_NAME = 'demo-app'
         APP_PORT = '3000'
     }
