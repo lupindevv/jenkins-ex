@@ -23,7 +23,7 @@ pipeline {
                 dir(env.APP_DIR) {  // Fixed from "dev" to "dir"
                     script {
                         echo "Incrementing version..."
-                        sh 'npm version major --no-git-tag-version'
+                        sh 'npm version patch --no-git-tag-version'
                         def packageJson = readJSON file: 'package.json'
                         env.VERSION = packageJson.version
                         def matcher = readFile('package.json') =~ /"version": "(.*?)"/
@@ -79,7 +79,7 @@ pipeline {
                     withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
                         sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
                     }
-                } // Added missing closing brace for script block
+                } 
             }
         }
     }
