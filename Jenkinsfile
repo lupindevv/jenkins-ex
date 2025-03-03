@@ -1,14 +1,14 @@
 pipeline {
     agent any
     tools {
-        nodejs 'npm'  // Make sure this tool is configured in Jenkins
+        nodejs 'npm'
     }
     environment {
         APP_DIR = 'app'
-        REMOTE_USER = 'root'          // Change to your remote server user
-        REMOTE_HOST = '138.68.106.49'        // Change to your server IP/hostname
-        CONTAINER_NAME = 'demo-app'     // Name for the Docker container
-        APP_PORT = '3000'               // Port your application runs on
+        REMOTE_USER = 'root'
+        REMOTE_HOST = '138.68.106.49'
+        CONTAINER_NAME = 'demo-app'
+        APP_PORT = '3000'
     }
     stages {
         stage('build app') {
@@ -102,41 +102,60 @@ pipeline {
                 script {
                     echo "Deploying to remote server ${REMOTE_HOST}..."
                     
-                    // Use SSH credentials from Jenkins credentials store
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-server-key', keyFileVariable: 'SSH_KEY')]) {
-                        // Build SSH command prefix
-                        def sshCommand = "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST}"
+                    // Create deployment script
+                    writeFile file: 'deploy.sh', text: """#!/bin/bash
+                        # Pull the latest image
+                        docker pull alexthm1/demo-app:${env.IMAGE_NAME}
                         
-                        // Create deployment script
-                        writeFile file: 'deploy.sh', text: """#!/bin/bash
-                            # Pull the latest image
-                            docker pull alexthm1/demo-app:${env.IMAGE_NAME}
+                        # Stop and remove existing container if it exists
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
+                        
+                        # Run the new container
+                        docker run -d \\
+                            --name ${CONTAINER_NAME} \\
+                            -p ${APP_PORT}:${APP_PORT} \\
+                            --restart unless-stopped \\
+                            alexthm1/demo-app:${env.IMAGE_NAME}
                             
-                            # Stop and remove existing container if it exists
-                            docker stop ${CONTAINER_NAME} || true
-                            docker rm ${CONTAINER_NAME} || true
+                        # Display container status
+                        docker ps | grep ${CONTAINER_NAME}
+                    """
+                    
+                    // Make script executable
+                    sh "chmod +x deploy.sh"
+                    
+                    // Install sshpass if not already installed
+                    sh '''
+                        if ! command -v sshpass &> /dev/null; then
+                            echo "Installing sshpass..."
+                            sudo apt-get update && sudo apt-get install -y sshpass
+                        fi
+                    '''
+                    
+                    // Use username/password authentication
+                    withCredentials([usernamePassword(credentialsId: 'server-credentials1', 
+                                                     usernameVariable: 'SERVER_USER', 
+                                                     passwordVariable: 'SERVER_PASS')]) {
+                        // Copy and execute deployment script using sshpass
+                        sh '''
+                            # Disable command echo to protect password
+                            set +x
                             
-                            # Run the new container
-                            docker run -d \\
-                                --name ${CONTAINER_NAME} \\
-                                -p ${APP_PORT}:${APP_PORT} \\
-                                --restart unless-stopped \\
-                                alexthm1/demo-app:${env.IMAGE_NAME}
-                                
-                            # Display container status
-                            docker ps | grep ${CONTAINER_NAME}
-                        """
+                            # Export password for sshpass
+                            export SSHPASS=$SERVER_PASS
+                            
+                            # Copy deployment script
+                            sshpass -e scp -o StrictHostKeyChecking=no deploy.sh $REMOTE_USER@$REMOTE_HOST:~/
+                            
+                            # Execute deployment script
+                            sshpass -e ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "chmod +x ~/deploy.sh && ~/deploy.sh"
+                            
                         
-                        // Make script executable and copy to remote server
-                        sh "chmod +x deploy.sh"
-                        sh "scp -i ${SSH_KEY} -o StrictHostKeyChecking=no deploy.sh ${REMOTE_USER}@${REMOTE_HOST}:~/"
-                        
-                        // Execute deployment script
-                        sh "${sshCommand} './deploy.sh'"
-                        
-                        
-                        echo "Deployment completed successfully"
+                        '''
                     }
+                    
+                    echo "Deployment completed successfully"
                 }
             }
         }
