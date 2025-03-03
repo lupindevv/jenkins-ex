@@ -4,7 +4,7 @@
 
 ##### Test
 The project uses jest library for tests. (see "test" script in package.json)
-There is 1 test (server.test.js) in the project that checks whether the main index.html file exists in the project. 
+There is 1 test (server.test.js) in the project that checks whether the main index.html file exists in thdasdase project. 
 
 To run the nodejs test:
 
