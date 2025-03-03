@@ -122,37 +122,18 @@ pipeline {
                         docker ps | grep ${CONTAINER_NAME}
                     """
                     
-                    // Make script executable
+                    // Make the script executable
                     sh "chmod +x deploy.sh"
                     
-                    // Install sshpass if not already installed
-                    sh '''
-                        if ! command -v sshpass &> /dev/null; then
-                            echo "Installing sshpass..."
-                            sudo apt-get update && sudo apt-get install -y sshpass
-                        fi
-                    '''
-                    
-                    // Use username/password authentication
-                    withCredentials([usernamePassword(credentialsId: 'server-credentials1', 
-                                                     usernameVariable: 'SERVER_USER', 
-                                                     passwordVariable: 'SERVER_PASS')]) {
-                        // Copy and execute deployment script using sshpass
-                        sh '''
-                            # Disable command echo to protect password
-                            set +x
-                            
-                            # Export password for sshpass
-                            export SSHPASS=$SERVER_PASS
-                            
-                            # Copy deployment script
-                            sshpass -e scp -o StrictHostKeyChecking=no deploy.sh $REMOTE_USER@$REMOTE_HOST:~/
+                    // Use SSH Agent for simplified deployment
+                    sshagent(['jenkins-ssh']) {
+                        sh """
+                            # Copy deployment script to server
+                            scp -o StrictHostKeyChecking=no deploy.sh ${REMOTE_USER}@${REMOTE_HOST}:~/
                             
                             # Execute deployment script
-                            sshpass -e ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "chmod +x ~/deploy.sh && ~/deploy.sh"
-                            
-                        
-                        '''
+                            ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} 'chmod +x ~/deploy.sh && ~/deploy.sh'
+                        """
                     }
                     
                     echo "Deployment completed successfully"
