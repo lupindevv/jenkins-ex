@@ -76,7 +76,7 @@ pipeline {
                     sh "git pull origin for-testing"
                     
                     // Use Jenkins credentials to push
-                    withCredentials([string(credentialsId: 'github', variable: 'TOKEN')]) {
+                    withCredentials([string(credentialsId: 'gittoken', variable: 'TOKEN')]) {
                         sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
                     }
                 } // Added missing closing brace for script block
