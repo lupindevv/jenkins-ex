@@ -13,7 +13,7 @@ To run the nodejs test:
 Make sure to download jest library before running test, otherwise jest command defined in package.json won't be found.
 
     npm install
-
+dsada
 In order to see failing test, remove index.html or rename it and run tests.22dsadssdsss
 11
 3213
