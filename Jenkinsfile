@@ -64,35 +64,23 @@ pipeline {
         }
         
         stage('commit new version') {
-    steps {
-        script {
-            // Configure git
-            sh 'git config --global user.email "jenkins@example.com"'
-            sh 'git config --global user.name "jenkins"'
-            
-            // Make sure we're on the correct branch
-            sh 'git checkout for-testing || git checkout -b for-testing'
-            
-            // Add changes and commit with better message
-            sh 'git add .'
-            sh """
-                git commit -m "ci: version bump to ${env.VERSION}" \
-                -m "Build: #${BUILD_NUMBER}" \
-                -m "Image: alexthm1/demo-app:${env.IMAGE_NAME}" || echo "No changes to commit"
-            """
-            
-            // Use Jenkins credentials to push with username/password type
-            withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                sh '''
-                    set +x
-                    git remote set-url origin https://x-access-token:${GIT_PASSWORD}@github.com/lupindevv/jenkins-ex.git
-                    git pull origin for-testing || true
-                    git push origin for-testing
-                    set -x
-                '''
+            steps {
+                script {
+                    // Configure git
+                    sh 'git config --global user.email "jenkins@example.com"'
+                    sh 'git config --global user.name "jenkins"'
+                    
+                    // Add changes and commit
+                    sh 'git add .'
+                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
+                    sh "git pull origin for-testing"
+                    
+                    // Use Jenkins credentials to push
+                    withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
+                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
+                    }
+                } // Added missing closing brace for script block
             }
-        } 
-    }
-}
+        }
     }
 }
