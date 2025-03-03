@@ -76,7 +76,7 @@ pipeline {
                     sh "git pull origin for-testing"
                     
                     // Use Jenkins credentials to push
-                    withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
+                    withCredentials([string(credentialsId: 'github', variable: 'TOKEN')]) {
                         sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
                     }
                 } 
