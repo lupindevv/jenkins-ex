@@ -64,23 +64,21 @@ pipeline {
         }
         
         stage('commit new version') {
-            steps {
-                script {
-                    // Configure git
-                    sh 'git config --global user.email "jenkins@example.com"'
-                    sh 'git config --global user.name "jenkins"'
-                    
-                    // Add changes and commit
-                    sh 'git add .'
-                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
-                    sh "git pull origin for-testing"
-                    
-                    // Use Jenkins credentials to push
-                    withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
-                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
-                    }
-                } 
+    steps {
+        script {
+            sh 'git config --global user.email "jenkins@example.com"'
+            sh 'git config --global user.name "jenkins"'
+
+            sh 'git add package.json package-lock.json'
+            sh 'git commit -m "ci: version bump [ci skip]" || echo "No changes to commit"'
+            sh "git pull --rebase origin for-testing"
+
+            withCredentials([string(credentialsId: 'githubtoken', variable: 'TOKEN')]) {
+                sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing || true"
             }
         }
+    }
+}
+
     }
 }
