@@ -5,6 +5,10 @@ pipeline {
     }
     environment {
         APP_DIR = 'app'
+        REMOTE_USER = 'root'          // Change to your remote server user
+        REMOTE_HOST = '138.68.106.49'        // Change to your server IP/hostname
+        CONTAINER_NAME = 'demo-app'     // Name for the Docker container
+        APP_PORT = '3000'               // Port your application runs on
     }
     stages {
         stage('build app') {
@@ -72,15 +76,77 @@ pipeline {
                     
                     // Add changes and commit
                     sh 'git add .'
-                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
-                    sh "git pull origin for-testing"
+                    sh """
+                        git commit -m "ci: version bump to ${env.VERSION}" \
+                        -m "Build: #${BUILD_NUMBER}" \
+                        -m "Image: alexthm1/demo-app:${env.IMAGE_NAME}" || echo "No changes to commit"
+                    """
+                    
+                    // Pull before pushing
+                    sh "git pull origin for-testing || true"
                     
                     // Use Jenkins credentials to push
                     withCredentials([string(credentialsId: 'gittoken', variable: 'TOKEN')]) {
-                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
+                        sh '''
+                            set +x
+                            git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing
+                            set -x
+                        '''
                     }
-                } // Added missing closing brace for script block
+                }
             }
+        }
+        
+        stage('Deploy to Remote Server') {
+            steps {
+                script {
+                    echo "Deploying to remote server ${REMOTE_HOST}..."
+                    
+                    // Use SSH credentials from Jenkins credentials store
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-server-key', keyFileVariable: 'SSH_KEY')]) {
+                        // Build SSH command prefix
+                        def sshCommand = "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST}"
+                        
+                        // Create deployment script
+                        writeFile file: 'deploy.sh', text: """#!/bin/bash
+                            # Pull the latest image
+                            docker pull alexthm1/demo-app:${env.IMAGE_NAME}
+                            
+                            # Stop and remove existing container if it exists
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
+                            
+                            # Run the new container
+                            docker run -d \\
+                                --name ${CONTAINER_NAME} \\
+                                -p ${APP_PORT}:${APP_PORT} \\
+                                --restart unless-stopped \\
+                                alexthm1/demo-app:${env.IMAGE_NAME}
+                                
+                            # Display container status
+                            docker ps | grep ${CONTAINER_NAME}
+                        """
+                        
+                        // Make script executable and copy to remote server
+                        sh "chmod +x deploy.sh"
+                        sh "scp -i ${SSH_KEY} -o StrictHostKeyChecking=no deploy.sh ${REMOTE_USER}@${REMOTE_HOST}:~/"
+                        
+                        // Execute deployment script
+                        sh "${sshCommand} './deploy.sh'"
+                        
+                        
+                        echo "Deployment completed successfully"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo "Pipeline executed successfully"
+        }
+        failure {
+            echo "Pipeline execution failed"
         }
     }
 }
