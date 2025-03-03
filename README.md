@@ -14,8 +14,7 @@ Make sure to download jest library before running test, otherwise jest command d
 
     npm install
 
-In order to see failing test, remove index.html or rename it and run tests.22dsa
+In order to see failing test, remove index.html or rename it and run tests.22dsads
 11
 3213
 rrttt
-this is triggerd from vs code
