@@ -3,13 +3,13 @@ pipeline {
     tools {
         nodejs 'npm'  // Make sure this tool is configured in Jenkins
     }
-    environment {  // Fixed spelling from "envirnoment" to "environment"
+    environment {
         APP_DIR = 'app'
     }
     stages {
         stage('build app') {
             steps {
-                dir(env.APP_DIR) {  // Fixed from "dev" to "dir"
+                dir(env.APP_DIR) {
                     script {
                         echo 'Installing dependencies...'
                         sh 'npm install'
@@ -20,7 +20,7 @@ pipeline {
         
         stage('increment version') {
             steps {
-                dir(env.APP_DIR) {  // Fixed from "dev" to "dir"
+                dir(env.APP_DIR) {
                     script {
                         echo "Incrementing version..."
                         sh 'npm version major --no-git-tag-version'
@@ -36,7 +36,7 @@ pipeline {
         
         stage('run tests') {
             steps {
-                dir(env.APP_DIR) {  // Added dir block for test stage
+                dir(env.APP_DIR) {
                     script {
                         echo 'Running tests..'
                         sh 'npm test'
@@ -56,7 +56,7 @@ pipeline {
                     echo "Building docker image..."
                     withCredentials([usernamePassword(credentialsId: 'dockerhubs', usernameVariable: "USER", passwordVariable: "PASS")]) {
                         sh "docker build -t alexthm1/demo-app:${env.IMAGE_NAME} ."
-                        sh "echo \$PASS | docker login -u \$USER --password-stdin"  // More secure login method
+                        sh "echo \$PASS | docker login -u \$USER --password-stdin"
                         sh "docker push alexthm1/demo-app:${env.IMAGE_NAME}"
                     }
                 }
@@ -64,23 +64,35 @@ pipeline {
         }
         
         stage('commit new version') {
-            steps {
-                script {
-                    // Configure git
-                    sh 'git config --global user.email "jenkins@example.com"'
-                    sh 'git config --global user.name "jenkins"'
-                    
-                    // Add changes and commit
-                    sh 'git add .'
-                    sh 'git commit -m "ci: version bump" || echo "No changes to commit"'
-                    sh "git pull origin for-testing"
-                    
-                    // Use Jenkins credentials to push
-                    withCredentials([string(credentialsId: 'github', variable: 'TOKEN')]) {
-                        sh "git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing"
-                    }
-                } 
+    steps {
+        script {
+            // Configure git
+            sh 'git config --global user.email "jenkins@example.com"'
+            sh 'git config --global user.name "jenkins"'
+            
+            // Make sure we're on the correct branch
+            sh 'git checkout for-testing || git checkout -b for-testing'
+            
+            // Add changes and commit with better message
+            sh 'git add .'
+            sh """
+                git commit -m "ci: version bump to ${env.VERSION}" \
+                -m "Build: #${BUILD_NUMBER}" \
+                -m "Image: alexthm1/demo-app:${env.IMAGE_NAME}" || echo "No changes to commit"
+            """
+            
+            // Use Jenkins credentials to push with username/password type
+            withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                sh '''
+                    set +x
+                    git remote set-url origin https://x-access-token:${GIT_PASSWORD}@github.com/lupindevv/jenkins-ex.git
+                    git pull origin for-testing || true
+                    git push origin for-testing
+                    set -x
+                '''
             }
-        }
+        } 
+    }
+}
     }
 }
