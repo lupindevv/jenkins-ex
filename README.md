@@ -10,7 +10,7 @@ To run the nodejs test:
 
     npm run test
 
-Make sure to download jest library before running test, otherwise jest command defined in package.json won't be found.
+Make sure to download jest library before running test, otherwise jest command defined in package.json won'tddd be found.
 
     npm install
 
