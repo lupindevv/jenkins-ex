@@ -13,49 +13,41 @@ pipeline {
     }
     stages {
         stage('Load Functions') {
-    steps {
-        script {
-            // Load the shared functions
-            def functions = load "jenkins-functions.groovy"
-            // Make them accessible in the pipeline
-            env.functions = functions
-        }
-    }
-}
-stage('build app with NPM') {
-    steps {
-        dir(env.APP_DIR) {
-            script {
-                functions.buildNPM()
+            steps {
+                script {
+                    // Load the shared functions
+                    functions = load "jenkins-functions.groovy"
+                }
             }
         }
-    }
-}
-        stage('build app with NPM') {
+        
+        stage('Build App') {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        buildNPM()
+                        // Use the correct function reference
+                        functions.buildNPM()
                     }
                 }
             }
         }
         
-        stage('increment version') {
+        stage('Increment Version') {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        incrementVersion()
+                        // Use the correct function name from your script (incrementVS not incrementVersion)
+                        functions.incrementVS()
                     }
                 }
             }
         }
         
-        stage('run tests') {
+        stage('Run Tests') {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        runTests()
+                        functions.runTests()
                     }
                 }
             }
@@ -66,18 +58,18 @@ stage('build app with NPM') {
             }
         }
         
-        stage('build docker image') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    buildDockerImage()
+                    functions.buildDockerImage()
                 }
             }
         }
         
-        stage('commit new version') {
+        stage('Commit New Version') {
             steps {
                 script {
-                    commitNewVersion()
+                    functions.commitNewVersion()
                 }
             }
         }
