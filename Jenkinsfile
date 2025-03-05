@@ -9,14 +9,33 @@ pipeline {
         REMOTE_HOST = '134.122.89.95'
         CONTAINER_NAME = 'demo-app'
         APP_PORT = '3000'
+        DOCKER_REPO = 'alexthm1/demo-app'
     }
     stages {
-        stage('build app') {
+        stage('Load Functions') {
+    steps {
+        script {
+            // Load the shared functions
+            def functions = load "jenkins-functions.groovy"
+            // Make them accessible in the pipeline
+            env.functions = functions
+        }
+    }
+}
+stage('build app with NPM') {
+    steps {
+        dir(env.APP_DIR) {
+            script {
+                functions.buildNPM()
+            }
+        }
+    }
+}
+        stage('build app with NPM') {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        echo 'Installing dependencies...'
-                        sh 'npm install'
+                        buildNPM()
                     }
                 }
             }
@@ -26,13 +45,7 @@ pipeline {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        echo "Incrementing version..."
-                        sh 'npm version major --no-git-tag-version'
-                        def packageJson = readJSON file: 'package.json'
-                        env.VERSION = packageJson.version
-                        def matcher = readFile('package.json') =~ /"version": "(.*?)"/
-                        env.VERSION = matcher[0][1]
-                        env.IMAGE_NAME = "${env.VERSION}-${BUILD_NUMBER}"
+                        incrementVersion()
                     }
                 }
             }
@@ -42,8 +55,7 @@ pipeline {
             steps {
                 dir(env.APP_DIR) {
                     script {
-                        echo 'Running tests..'
-                        sh 'npm test'
+                        runTests()
                     }
                 }
             }
@@ -57,12 +69,7 @@ pipeline {
         stage('build docker image') {
             steps {
                 script {
-                    echo "Building docker image..."
-                    withCredentials([usernamePassword(credentialsId: 'dockerhubs', usernameVariable: "USER", passwordVariable: "PASS")]) {
-                        sh "docker build -t alexthm1/demo-app:${env.IMAGE_NAME} ."
-                        sh "echo \$PASS | docker login -u \$USER --password-stdin"
-                        sh "docker push alexthm1/demo-app:${env.IMAGE_NAME}"
-                    }
+                    buildDockerImage()
                 }
             }
         }
@@ -70,29 +77,7 @@ pipeline {
         stage('commit new version') {
             steps {
                 script {
-                    // Configure git
-                    sh 'git config --global user.email "jenkins@example.com"'
-                    sh 'git config --global user.name "jenkins"'
-                    
-                    // Add changes and commit
-                    sh 'git add .'
-                    sh """
-                        git commit -m "ci: version bump to ${env.VERSION}" \
-                        -m "Build: #${BUILD_NUMBER}" \
-                        -m "Image: alexthm1/demo-app:${env.IMAGE_NAME}" || echo "No changes to commit"
-                    """
-                    
-                    // Pull before pushing
-                    sh "git pull origin for-testing || true"
-                    
-                    // Use Jenkins credentials to push
-                    withCredentials([string(credentialsId: 'gittoken', variable: 'TOKEN')]) {
-                        sh '''
-                            set +x
-                            git push https://${TOKEN}@github.com/lupindevv/jenkins-ex.git HEAD:for-testing
-                            set -x
-                        '''
-                    }
+                    commitNewVersion()
                 }
             }
         }
@@ -105,7 +90,7 @@ pipeline {
                     // Create deployment script
                     writeFile file: 'deploy.sh', text: """#!/bin/bash
                         # Pull the latest image
-                        docker pull alexthm1/demo-app:${env.IMAGE_NAME}
+                        docker pull ${DOCKER_REPO}:${env.IMAGE_NAME}
                         
                         # Stop and remove existing container if it exists
                         docker stop ${CONTAINER_NAME} || true
@@ -116,7 +101,7 @@ pipeline {
                             --name ${CONTAINER_NAME} \\
                             -p ${APP_PORT}:${APP_PORT} \\
                             --restart unless-stopped \\
-                            alexthm1/demo-app:${env.IMAGE_NAME}
+                            ${DOCKER_REPO}:${env.IMAGE_NAME}
                             
                         # Display container status
                         docker ps | grep ${CONTAINER_NAME}
